@@ -12,12 +12,13 @@ type Product = {
   stock: number;
   tag: string;
   imageUrl?: string;
+  isActive: boolean;
 };
 
 type CartItem = Product & { quantity: number };
 type Screen = "Vitrine" | "Catálogo" | "Produto" | "Carrinho" | "Pagamento";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 const fallbackProducts: Product[] = [
   {
@@ -224,7 +225,7 @@ export default function Home() {
   );
 }
 
-function authHeader() {
+function authHeader(): Record<string, string> {
   if (typeof window === "undefined") {
     return {};
   }
@@ -392,7 +393,7 @@ function PerfumeCard({ product, onSelect, onGo }: { product: Product; onSelect: 
 }
 
 function ProductImage({ product, large = false }: { product: Product; large?: boolean }) {
-  const image = product.imageUrl ? `${apiUrl}${product.imageUrl}` : "";
+  const image = resolveImageUrl(product.imageUrl);
 
   return (
     <div className={`${large ? "min-h-96 rounded-[28px]" : "mb-4 h-44 rounded-[22px]"} grid place-items-center bg-gradient-to-br from-[#fff7ef] to-[#eadac8]`}>
@@ -403,6 +404,18 @@ function ProductImage({ product, large = false }: { product: Product; large?: bo
       )}
     </div>
   );
+}
+
+function resolveImageUrl(imageUrl?: string) {
+  if (!imageUrl) {
+    return "";
+  }
+
+  if (imageUrl.startsWith("data:") || imageUrl.startsWith("http")) {
+    return imageUrl;
+  }
+
+  return `${apiUrl.replace(/\/api$/, "")}${imageUrl}`;
 }
 
 function OrderSummary({ subtotal, shipping, total, action, onClick }: { subtotal: number; shipping: number; total: number; action: string; onClick?: () => void }) {

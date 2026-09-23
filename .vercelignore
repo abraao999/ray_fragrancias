@@ -1,0 +1,10 @@
+.openai
+.vinext
+.wrangler
+api/node_modules
+api/uploads
+dist
+docker-compose.yml
+node_modules
+outputs
+work

@@ -39,7 +39,7 @@ type Order = {
   createdAt: string;
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
 const orderStatuses: Order["status"][] = ["pending", "paid", "shipping", "delivered", "cancelled"];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -415,7 +415,7 @@ function statusLabel(status: Order["status"]) {
   return labels[status];
 }
 
-function authHeader() {
+function authHeader(): Record<string, string> {
   const token = window.localStorage.getItem("ray_token");
 
   return token ? { Authorization: `Bearer ${token}` } : {};

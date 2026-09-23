@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { Product } from "../models/Product.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
-import { upload } from "../middleware/upload.js";
+import { fileToDataUrl, upload } from "../middleware/upload.js";
 
 export const productsRouter = Router();
 
@@ -28,7 +28,7 @@ productsRouter.post("/", requireAuth, requireAdmin, upload.single("image"), asyn
       notes: req.body.notes,
       stock,
       tag: req.body.tag || "Novo",
-      imageUrl: req.file ? `/uploads/${req.file.filename}` : "",
+      imageUrl: fileToDataUrl(req.file),
       isActive: req.body.isActive !== "false"
     });
 
@@ -52,7 +52,7 @@ productsRouter.put("/:id", requireAuth, requireAdmin, upload.single("image"), as
     };
 
     if (req.file) {
-      updates.imageUrl = `/uploads/${req.file.filename}`;
+      updates.imageUrl = fileToDataUrl(req.file);
     }
 
     const product = await Product.findByIdAndUpdate(req.params.id, updates, {
