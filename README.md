@@ -42,6 +42,7 @@ No arquivo `api/.env`, configure:
 - Página de produto.
 - Carrinho.
 - Cálculo de frete por CEP em rota Node.
+- Integração de cotação com Melhor Envio, com fallback local quando não houver token.
 - Painel do dono com cadastro de produto e upload de foto.
 - Produtos e pedidos no MongoDB.
 - Cadastro/login de usuários com JWT.
@@ -71,6 +72,14 @@ MONGO_URI=sua-url-do-mongodb-atlas
 FRONTEND_URL=https://seu-projeto.vercel.app
 MERCADO_PAGO_ACCESS_TOKEN=seu-token
 JWT_SECRET=uma-chave-grande-e-segura
+MELHOR_ENVIO_TOKEN=seu-token-melhor-envio
+MELHOR_ENVIO_BASE_URL=https://www.melhorenvio.com.br
+MELHOR_ENVIO_USER_AGENT=Ray Fragrancias (seu-email@dominio.com)
+SHIP_FROM_CEP=cep-de-origem
+DEFAULT_PACKAGE_WIDTH=12
+DEFAULT_PACKAGE_HEIGHT=18
+DEFAULT_PACKAGE_LENGTH=8
+DEFAULT_PACKAGE_WEIGHT=0.35
 ```
 
 Você não precisa configurar `NEXT_PUBLIC_API_URL` na Vercel, porque o frontend usa `/api` por padrão e chama a API no mesmo domínio.

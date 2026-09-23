@@ -27,16 +27,6 @@ export function createApp() {
   app.use(express.json());
   app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
-  app.use(async (_req, _res, next) => {
-    try {
-      dbConnectionPromise ??= connectDb();
-      await dbConnectionPromise;
-      next();
-    } catch (error) {
-      next(error);
-    }
-  });
-
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", app: "ray-fragrancias-api" });
   });
@@ -53,10 +43,30 @@ export function createApp() {
 }
 
 function mountRoutes(app, prefix) {
-  app.use(`${prefix}/auth`, authRouter);
-  app.use(`${prefix}/products`, productsRouter);
   app.use(`${prefix}/shipping`, shippingRouter);
-  app.use(`${prefix}/payments`, paymentsRouter);
-  app.use(`${prefix}/orders`, ordersRouter);
-  app.use(`${prefix}/users`, usersRouter);
+  app.use(`${prefix}/auth`, requireDb, authRouter);
+  app.use(`${prefix}/products`, optionalDb, productsRouter);
+  app.use(`${prefix}/payments`, requireDb, paymentsRouter);
+  app.use(`${prefix}/orders`, requireDb, ordersRouter);
+  app.use(`${prefix}/users`, requireDb, usersRouter);
+}
+
+async function optionalDb(req, res, next) {
+  if (!process.env.MONGO_URI) {
+    req.dbUnavailable = true;
+    next();
+    return;
+  }
+
+  await requireDb(req, res, next);
+}
+
+async function requireDb(_req, _res, next) {
+  try {
+    dbConnectionPromise ??= connectDb();
+    await dbConnectionPromise;
+    next();
+  } catch (error) {
+    next(error);
+  }
 }

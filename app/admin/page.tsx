@@ -29,12 +29,38 @@ type Order = {
     phone?: string;
     cep: string;
   };
+  address?: {
+    cep: string;
+    street: string;
+    number: string;
+    complement?: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+  };
   items: Array<{
     name: string;
     quantity: number;
     unitPrice: number;
   }>;
   total: number;
+  shippingOption?: {
+    service?: string;
+    company?: string;
+    price?: number;
+    deliveryDays?: number;
+  };
+  paymentStatus?: string;
+  paymentId?: string;
+  paymentMethod?: string;
+  trackingCode?: string;
+  customerNote?: string;
+  internalNote?: string;
+  statusHistory?: Array<{
+    status: Order["status"];
+    note?: string;
+    changedAt: string;
+  }>;
   status: "pending" | "paid" | "shipping" | "delivered" | "cancelled";
   createdAt: string;
 };
@@ -182,6 +208,25 @@ export default function AdminPage() {
     }
   }
 
+  async function updateFulfillment(order: Order, formData: FormData) {
+    const response = await fetch(`${apiUrl}/orders/${order._id}/fulfillment`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader()
+      },
+      body: JSON.stringify({
+        trackingCode: String(formData.get("trackingCode") || ""),
+        internalNote: String(formData.get("internalNote") || "")
+      })
+    });
+
+    if (response.ok) {
+      await loadAdminData();
+      setMessage("Dados de envio do pedido salvos.");
+    }
+  }
+
   return (
     <main className="app-shell min-h-screen text-[#230c11]">
       <header className="glass-nav">
@@ -311,23 +356,50 @@ export default function AdminPage() {
                   <p className="text-sm text-[#6b403b]">Nenhum pedido criado ainda.</p>
                 ) : (
                   orders.map((order) => (
-                    <div className="grid gap-4 rounded-2xl border border-[#eadac8] bg-[#fffaf5] p-4 lg:grid-cols-[1fr_220px]" key={order._id}>
+                    <div className="grid gap-4 rounded-2xl border border-[#eadac8] bg-[#fffaf5] p-4 lg:grid-cols-[1fr_280px]" key={order._id}>
                       <div>
                         <div className="flex flex-wrap justify-between gap-2">
                           <p className="font-semibold text-[#65111d]">{order.customer.name}</p>
                           <p className="font-semibold">{money.format(order.total)}</p>
                         </div>
-                        <p className="mt-1 text-sm text-[#6b403b]">{order.customer.email} · CEP {order.customer.cep}</p>
+                        <p className="mt-1 text-sm text-[#6b403b]">{order.customer.email} · {order.customer.phone || "sem telefone"}</p>
+                        <p className="mt-2 text-sm text-[#6b403b]">{formatAddress(order)}</p>
                         <p className="mt-2 text-sm text-[#6b403b]">
                           {order.items.map((item) => `${item.quantity}x ${item.name}`).join(", ")}
                         </p>
+                        {order.customerNote && (
+                          <p className="mt-2 rounded-xl bg-white/70 p-3 text-sm text-[#6b403b]">Cliente: {order.customerNote}</p>
+                        )}
+                        <div className="mt-3 grid gap-2 text-xs text-[#9a6b58] sm:grid-cols-2">
+                          <span>Pagamento: {paymentLabel(order.paymentStatus)}</span>
+                          <span>Rastreio: {order.trackingCode || "não informado"}</span>
+                          <span>Frete: {shippingLabel(order)}</span>
+                        </div>
+                        {order.statusHistory && order.statusHistory.length > 0 && (
+                          <p className="mt-2 text-xs text-[#9a6b58]">
+                            Histórico: {order.statusHistory.map((entry) => statusLabel(entry.status)).join(" → ")}
+                          </p>
+                        )}
                         <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#9a6b58]">{statusLabel(order.status)}</p>
                       </div>
-                      <select className="field" value={order.status} onChange={(event) => updateOrderStatus(order, event.target.value as Order["status"])}>
-                        {orderStatuses.map((status) => (
-                          <option key={status} value={status}>{statusLabel(status)}</option>
-                        ))}
-                      </select>
+                      <div className="space-y-3">
+                        <select className="field" value={order.status} onChange={(event) => updateOrderStatus(order, event.target.value as Order["status"])}>
+                          {orderStatuses.map((status) => (
+                            <option key={status} value={status}>{statusLabel(status)}</option>
+                          ))}
+                        </select>
+                        <form
+                          className="space-y-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void updateFulfillment(order, new FormData(event.currentTarget));
+                          }}
+                        >
+                          <input className="field" defaultValue={order.trackingCode} name="trackingCode" placeholder="Código de rastreio" />
+                          <textarea className="field min-h-20" defaultValue={order.internalNote} name="internalNote" placeholder="Observação interna" />
+                          <button className="btn-secondary w-full" type="submit">Salvar envio</button>
+                        </form>
+                      </div>
                     </div>
                   ))
                 )}
@@ -413,6 +485,37 @@ function statusLabel(status: Order["status"]) {
   };
 
   return labels[status];
+}
+
+function paymentLabel(status?: string) {
+  const labels: Record<string, string> = {
+    not_started: "Não iniciado",
+    pending: "Pendente",
+    approved: "Aprovado",
+    rejected: "Recusado",
+    cancelled: "Cancelado",
+    refunded: "Estornado"
+  };
+
+  return status ? labels[status] || status : "Não iniciado";
+}
+
+function formatAddress(order: Order) {
+  if (!order.address) {
+    return `CEP ${order.customer.cep}`;
+  }
+
+  const complement = order.address.complement ? `, ${order.address.complement}` : "";
+
+  return `${order.address.street}, ${order.address.number}${complement} - ${order.address.neighborhood}, ${order.address.city}/${order.address.state} · CEP ${order.address.cep}`;
+}
+
+function shippingLabel(order: Order) {
+  if (!order.shippingOption?.service) {
+    return "não selecionado";
+  }
+
+  return `${order.shippingOption.company || "Transportadora"} ${order.shippingOption.service}`;
 }
 
 function authHeader(): Record<string, string> {

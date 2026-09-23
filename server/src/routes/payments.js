@@ -37,10 +37,23 @@ paymentsRouter.post("/checkout", optionalAuth, async (req, res, next) => {
     );
     const shipping = Number(req.body.shipping || 0);
     const total = subtotal + shipping;
+    const customer = req.body.customer || {};
+    const address = req.body.address || {};
+
+    if (!address.street || !address.number || !address.neighborhood || !address.city || !address.state || !address.cep) {
+      res.status(400).json({ message: "Endereço completo é obrigatório para finalizar o pedido." });
+      return;
+    }
 
     const order = await Order.create({
       userId: req.user?._id || null,
-      customer: req.body.customer,
+      customer: {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone || "",
+        cep: address.cep || customer.cep
+      },
+      address,
       items: items.map((item) => ({
         productId: item.product._id,
         name: item.product.name,
@@ -49,7 +62,10 @@ paymentsRouter.post("/checkout", optionalAuth, async (req, res, next) => {
       })),
       subtotal,
       shipping,
-      total
+      shippingOption: req.body.shippingOption || {},
+      total,
+      customerNote: req.body.customerNote || "",
+      statusHistory: [{ status: "pending", note: "Pedido criado" }]
     });
 
     const client = new MercadoPagoConfig({ accessToken });
@@ -76,8 +92,8 @@ paymentsRouter.post("/checkout", optionalAuth, async (req, res, next) => {
           }
         ],
         payer: {
-          name: req.body.customer.name,
-          email: req.body.customer.email
+          name: customer.name,
+          email: customer.email
         },
         back_urls: {
           success: `${frontendUrl}/?payment=success`,
@@ -89,6 +105,7 @@ paymentsRouter.post("/checkout", optionalAuth, async (req, res, next) => {
     });
 
     order.paymentPreferenceId = response.id;
+    order.paymentStatus = "pending";
     order.paymentUrl = response.init_point || response.sandbox_init_point;
     await order.save();
 

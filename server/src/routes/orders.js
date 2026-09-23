@@ -33,7 +33,37 @@ ordersRouter.patch("/:id/status", requireAuth, requireAdmin, async (req, res, ne
 
     const order = await Order.findByIdAndUpdate(
       req.params.id,
-      { status: req.body.status },
+      {
+        status: req.body.status,
+        $push: {
+          statusHistory: {
+            status: req.body.status,
+            note: req.body.note || "Status atualizado pelo admin"
+          }
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!order) {
+      res.status(404).json({ message: "Pedido não encontrado." });
+      return;
+    }
+
+    res.json(order);
+  } catch (error) {
+    next(error);
+  }
+});
+
+ordersRouter.patch("/:id/fulfillment", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        trackingCode: req.body.trackingCode || "",
+        internalNote: req.body.internalNote || ""
+      },
       { new: true, runValidators: true }
     );
 

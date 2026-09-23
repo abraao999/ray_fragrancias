@@ -7,12 +7,26 @@ export const productsRouter = Router();
 
 productsRouter.get("/", async (req, res, next) => {
   try {
+    if (req.dbUnavailable) {
+      res.json([]);
+      return;
+    }
+
     const filter = req.query.includeInactive === "true" ? {} : { isActive: true };
     const products = await Product.find(filter).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     next(error);
   }
+});
+
+productsRouter.use((req, res, next) => {
+  if (req.dbUnavailable) {
+    res.status(400).json({ message: "MONGO_URI não foi configurado no .env" });
+    return;
+  }
+
+  next();
 });
 
 productsRouter.post("/", requireAuth, requireAdmin, upload.single("image"), async (req, res, next) => {

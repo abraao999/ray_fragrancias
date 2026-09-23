@@ -17,8 +17,34 @@ type Product = {
 
 type CartItem = Product & { quantity: number };
 type Screen = "Vitrine" | "Catálogo" | "Produto" | "Carrinho" | "Pagamento";
+type ShippingOption = {
+  id: string;
+  service: string;
+  company: string;
+  price: number;
+  deliveryDays: number;
+};
+type CheckoutPayload = {
+  customer: {
+    name: string;
+    email: string;
+    phone: string;
+    cep: string;
+  };
+  address: {
+    cep: string;
+    street: string;
+    number: string;
+    complement: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+  };
+  customerNote: string;
+  shippingOption?: ShippingOption;
+};
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:4000/api" : "/api");
 
 const fallbackProducts: Product[] = [
   {
@@ -63,12 +89,28 @@ const money = new Intl.NumberFormat("pt-BR", {
   currency: "BRL"
 });
 
+async function readJson(response: Response) {
+  const text = await response.text();
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("Vitrine");
   const [products, setProducts] = useState<Product[]>(fallbackProducts);
   const [selected, setSelected] = useState<Product>(fallbackProducts[0]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [shipping, setShipping] = useState(18.4);
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   const [notice, setNotice] = useState("Conecte a API para salvar produtos, calcular frete e pagar pelo Mercado Pago.");
 
   useEffect(() => {
@@ -108,22 +150,50 @@ export default function Home() {
   }
 
   async function quoteShipping(cep: string) {
-    const response = await fetch(`${apiUrl}/shipping/quote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cep, subtotal })
-    });
-    const data = await response.json();
+    try {
+      const response = await fetch(`${apiUrl}/shipping/quote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cep,
+          subtotal,
+          items: cart.map((item) => ({
+            productId: item._id,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        })
+      });
+      const data = await readJson(response);
 
-    if (!response.ok) {
-      throw new Error(data.message || "Não foi possível calcular o frete.");
+      if (!response.ok) {
+        throw new Error(data.message || "Não foi possível calcular o frete.");
+      }
+
+      const options = data.options || [];
+      const firstOption = options[0];
+
+      setShippingOptions(options);
+
+      if (firstOption) {
+        setSelectedShipping(firstOption);
+        setShipping(firstOption.price);
+        const sourceNotice = data.provider === "fallback"
+          ? " Frete estimado usado enquanto a integração da transportadora não retorna cotação."
+          : "";
+        setNotice(`Frete calculado: ${firstOption.company} ${firstOption.service} por ${money.format(firstOption.price)}.${sourceNotice}`);
+        return;
+      }
+
+      setSelectedShipping(null);
+      setShipping(0);
+      setNotice("Não encontramos opção de frete para esse CEP. Confira o CEP ou tente novamente.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Não foi possível calcular o frete.");
     }
-
-    setShipping(data.price);
-    setNotice(`Frete calculado: ${money.format(data.price)} em ${data.deliveryDays} dias úteis.`);
   }
 
-  async function checkout(customer: { name: string; email: string; phone: string; cep: string }) {
+  async function checkout(checkoutData: CheckoutPayload) {
     if (cart.length === 0) {
       setNotice("Adicione um perfume ao carrinho antes de pagar.");
       return;
@@ -136,12 +206,13 @@ export default function Home() {
         ...authHeader()
       },
       body: JSON.stringify({
-        customer,
+        ...checkoutData,
         shipping,
+        shippingOption: selectedShipping,
         items: cart.map((item) => ({ productId: item._id, quantity: item.quantity }))
       })
     });
-    const data = await response.json();
+    const data = await readJson(response);
 
     if (!response.ok) {
       throw new Error(data.message || "Não foi possível iniciar o pagamento.");
@@ -216,7 +287,22 @@ export default function Home() {
             {screen === "Vitrine" && <Storefront products={products} onGo={setScreen} onSelect={setSelected} />}
             {screen === "Catálogo" && <Catalog products={products} onGo={setScreen} onSelect={setSelected} />}
             {screen === "Produto" && <ProductDetail product={selected} onAdd={addToCart} onQuote={quoteShipping} />}
-            {screen === "Carrinho" && <Cart cart={cart} subtotal={subtotal} shipping={shipping} total={total} onGo={setScreen} onQuote={quoteShipping} />}
+            {screen === "Carrinho" && (
+              <Cart
+                cart={cart}
+                subtotal={subtotal}
+                shipping={shipping}
+                shippingOptions={shippingOptions}
+                selectedShipping={selectedShipping}
+                total={total}
+                onGo={setScreen}
+                onQuote={quoteShipping}
+                onSelectShipping={(option) => {
+                  setSelectedShipping(option);
+                  setShipping(option.price);
+                }}
+              />
+            )}
             {screen === "Pagamento" && <Payment cart={cart} subtotal={subtotal} shipping={shipping} total={total} onCheckout={checkout} setNotice={setNotice} />}
           </div>
         </div>
@@ -315,7 +401,27 @@ function ProductDetail({ product, onAdd, onQuote }: { product: Product; onAdd: (
   );
 }
 
-function Cart({ cart, subtotal, shipping, total, onGo, onQuote }: { cart: CartItem[]; subtotal: number; shipping: number; total: number; onGo: (screen: Screen) => void; onQuote: (cep: string) => Promise<void> }) {
+function Cart({
+  cart,
+  subtotal,
+  shipping,
+  shippingOptions,
+  selectedShipping,
+  total,
+  onGo,
+  onQuote,
+  onSelectShipping
+}: {
+  cart: CartItem[];
+  subtotal: number;
+  shipping: number;
+  shippingOptions: ShippingOption[];
+  selectedShipping: ShippingOption | null;
+  total: number;
+  onGo: (screen: Screen) => void;
+  onQuote: (cep: string) => Promise<void>;
+  onSelectShipping: (option: ShippingOption) => void;
+}) {
   const [cep, setCep] = useState("");
 
   return (
@@ -333,6 +439,22 @@ function Cart({ cart, subtotal, shipping, total, onGo, onQuote }: { cart: CartIt
             <input className="field" placeholder="CEP do cliente" value={cep} onChange={(event) => setCep(event.target.value)} />
             <button className="btn-primary bg-[#230c11]" onClick={() => onQuote(cep)} type="button">Atualizar</button>
           </div>
+          {shippingOptions.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {shippingOptions.map((option) => (
+                <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-[#eadac8] bg-white/70 p-3 text-sm" key={option.id}>
+                  <span>
+                    <span className="block font-semibold text-[#65111d]">{option.company} · {option.service}</span>
+                    <span className="text-[#6b403b]">{option.deliveryDays || "?"} dias úteis</span>
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <strong>{money.format(option.price)}</strong>
+                    <input checked={selectedShipping?.id === option.id} onChange={() => onSelectShipping(option)} type="radio" />
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <OrderSummary subtotal={subtotal} shipping={shipping} total={total} action="Ir para pagamento" onClick={() => onGo("Pagamento")} />
@@ -340,17 +462,30 @@ function Cart({ cart, subtotal, shipping, total, onGo, onQuote }: { cart: CartIt
   );
 }
 
-function Payment({ cart, subtotal, shipping, total, onCheckout, setNotice }: { cart: CartItem[]; subtotal: number; shipping: number; total: number; onCheckout: (customer: { name: string; email: string; phone: string; cep: string }) => Promise<void>; setNotice: (notice: string) => void }) {
+function Payment({ cart, subtotal, shipping, total, onCheckout, setNotice }: { cart: CartItem[]; subtotal: number; shipping: number; total: number; onCheckout: (payload: CheckoutPayload) => Promise<void>; setNotice: (notice: string) => void }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const cep = String(formData.get("cep") || "");
 
     try {
       await onCheckout({
-        name: String(formData.get("name") || ""),
-        email: String(formData.get("email") || ""),
-        phone: String(formData.get("phone") || ""),
-        cep: String(formData.get("cep") || "")
+        customer: {
+          name: String(formData.get("name") || ""),
+          email: String(formData.get("email") || ""),
+          phone: String(formData.get("phone") || ""),
+          cep
+        },
+        address: {
+          cep,
+          street: String(formData.get("street") || ""),
+          number: String(formData.get("number") || ""),
+          complement: String(formData.get("complement") || ""),
+          neighborhood: String(formData.get("neighborhood") || ""),
+          city: String(formData.get("city") || ""),
+          state: String(formData.get("state") || "")
+        },
+        customerNote: String(formData.get("customerNote") || "")
       });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Erro ao abrir pagamento.");
@@ -359,11 +494,28 @@ function Payment({ cart, subtotal, shipping, total, onCheckout, setNotice }: { c
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <form className="space-y-3" onSubmit={submit}>
-        <input className="field" name="name" placeholder="Nome do cliente" required />
-        <input className="field" name="email" placeholder="E-mail" required type="email" />
-        <input className="field" name="phone" placeholder="Telefone" />
-        <input className="field" name="cep" placeholder="CEP" required />
+      <form className="space-y-4" onSubmit={submit}>
+        <div className="soft-card rounded-[24px] p-4">
+          <p className="font-semibold text-[#65111d]">Dados do cliente</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <input className="field" name="name" placeholder="Nome completo" required />
+            <input className="field" name="email" placeholder="E-mail" required type="email" />
+            <input className="field md:col-span-2" name="phone" placeholder="Telefone / WhatsApp" />
+          </div>
+        </div>
+        <div className="soft-card rounded-[24px] p-4">
+          <p className="font-semibold text-[#65111d]">Endereço de entrega</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-6">
+            <input className="field md:col-span-2" name="cep" placeholder="CEP" required />
+            <input className="field md:col-span-4" name="street" placeholder="Rua / Avenida" required />
+            <input className="field md:col-span-2" name="number" placeholder="Número" required />
+            <input className="field md:col-span-4" name="complement" placeholder="Complemento" />
+            <input className="field md:col-span-2" name="neighborhood" placeholder="Bairro" required />
+            <input className="field md:col-span-3" name="city" placeholder="Cidade" required />
+            <input className="field md:col-span-1" name="state" placeholder="UF" required maxLength={2} />
+          </div>
+        </div>
+        <textarea className="field min-h-24" name="customerNote" placeholder="Observação para o pedido, ex: embalagem para presente" />
         <button className="btn-primary" disabled={cart.length === 0} type="submit">
           Pagar com Mercado Pago
         </button>
