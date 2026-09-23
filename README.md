@@ -18,10 +18,8 @@ docker compose up -d mongo
 Rode a API local:
 
 ```bash
-cd api
-cp .env.example .env
-npm install
-npm run dev
+cp api/.env.example .env
+npm run api:dev
 ```
 
 Em outro terminal, rode o frontend:
@@ -53,7 +51,7 @@ No arquivo `api/.env`, configure:
 
 ## Observação
 
-O cálculo de frete atual é uma regra local para desenvolvimento. Ele já está isolado em `api/src/routes/shipping.js`, pronto para trocar por Correios, Melhor Envio ou outra API.
+O cálculo de frete atual é uma regra local para desenvolvimento. Ele já está isolado em `server/src/routes/shipping.js`, pronto para trocar por Correios, Melhor Envio ou outra API.
 
 ## Deploy na Vercel
 
