@@ -10,7 +10,21 @@ type User = {
   role: "customer" | "admin";
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:4000/api" : "/api");
+
+async function readJson(response: Response) {
+  const text = await response.text();
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
 
 export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -48,7 +62,7 @@ export default function AccountPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    const data = await response.json();
+    const data = await readJson(response);
 
     if (!response.ok) {
       setMessage(data.message || "Não foi possível entrar.");

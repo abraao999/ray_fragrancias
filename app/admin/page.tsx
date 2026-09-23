@@ -65,9 +65,23 @@ type Order = {
   createdAt: string;
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:4000/api" : "/api");
 const orderStatuses: Order["status"][] = ["pending", "paid", "shipping", "delivered", "cancelled"];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+async function readJson(response: Response) {
+  const text = await response.text();
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
 
 export default function AdminPage() {
   const [photoName, setPhotoName] = useState("");
@@ -144,7 +158,7 @@ export default function AdminPage() {
         headers: authHeader(),
         body: formData
       });
-      const data = await response.json();
+      const data = await readJson(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Não foi possível salvar o produto.");

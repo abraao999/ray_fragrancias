@@ -111,7 +111,7 @@ export default function Home() {
   const [shipping, setShipping] = useState(18.4);
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
-  const [notice, setNotice] = useState("Conecte a API para salvar produtos, calcular frete e pagar pelo Mercado Pago.");
+  const [notice, setNotice] = useState("Loja online: escolha seus perfumes, calcule o frete e finalize pelo Mercado Pago.");
 
   useEffect(() => {
     fetch(`${apiUrl}/products`)
@@ -121,10 +121,13 @@ export default function Home() {
           setProducts(data);
           setSelected(data[0]);
           setNotice("Produtos carregados do MongoDB.");
+          return;
         }
+
+        setNotice("API conectada. Cadastre produtos no painel do dono para substituir a vitrine demonstrativa.");
       })
       .catch(() => {
-        setNotice("Modo demonstração: ligue a API Node para usar MongoDB e Mercado Pago.");
+        setNotice("Vitrine demonstrativa ativa. Verifique as variáveis da API na Vercel para carregar produtos reais.");
       });
   }, []);
 
