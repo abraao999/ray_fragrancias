@@ -3,5 +3,15 @@
   "devCommand": "npm run dev:vercel",
   "framework": "nextjs",
   "installCommand": "npm install",
-  "outputDirectory": ".next"
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs22.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/[...path]"
+    }
+  ]
 }
