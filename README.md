@@ -35,6 +35,7 @@ No arquivo `api/.env`, configure:
 - `MONGO_URI`: conexão do MongoDB.
 - `MERCADO_PAGO_ACCESS_TOKEN`: token da conta Mercado Pago.
 - `FRONTEND_URL`: endereço do frontend.
+- `CLOUDFLARE_R2_ACCOUNT_ID`, `CLOUDFLARE_R2_ACCESS_KEY_ID`, `CLOUDFLARE_R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_R2_BUCKET` e `CLOUDFLARE_R2_PUBLIC_URL`: credenciais para salvar fotos dos produtos no Cloudflare R2.
 
 ## O que já está implementado
 
@@ -44,6 +45,7 @@ No arquivo `api/.env`, configure:
 - Cálculo de frete por CEP em rota Node.
 - Integração de cotação com Melhor Envio, com fallback local quando não houver token.
 - Painel do dono com cadastro de produto e upload de foto.
+- Upload de fotos dos produtos no Cloudflare R2 quando as credenciais estiverem configuradas.
 - Produtos e pedidos no MongoDB.
 - Cadastro/login de usuários com JWT.
 - Primeiro usuário cadastrado vira dono/admin.
@@ -72,6 +74,12 @@ MONGO_URI=sua-url-do-mongodb-atlas
 FRONTEND_URL=https://seu-projeto.vercel.app
 MERCADO_PAGO_ACCESS_TOKEN=seu-token
 JWT_SECRET=uma-chave-grande-e-segura
+CLOUDFLARE_R2_ACCOUNT_ID=seu-account-id
+CLOUDFLARE_R2_ACCESS_KEY_ID=sua-access-key-id
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=sua-secret-access-key
+CLOUDFLARE_R2_BUCKET=ray-fragrancias
+CLOUDFLARE_R2_PUBLIC_URL=https://media.seudominio.com
+CLOUDFLARE_R2_FOLDER=produtos
 MELHOR_ENVIO_TOKEN=seu-token-melhor-envio
 MELHOR_ENVIO_BASE_URL=https://www.melhorenvio.com.br
 MELHOR_ENVIO_USER_AGENT=Ray Fragrancias (seu-email@dominio.com)

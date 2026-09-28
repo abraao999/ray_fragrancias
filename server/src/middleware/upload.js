@@ -1,4 +1,5 @@
 import multer from "multer";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export const upload = multer({
   storage: multer.memoryStorage(),
@@ -19,4 +20,62 @@ export function fileToDataUrl(file) {
   }
 
   return `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+}
+
+export async function uploadProductImage(file) {
+  if (!file) {
+    return "";
+  }
+
+  if (!hasR2Config()) {
+    return fileToDataUrl(file);
+  }
+
+  const bucket = process.env.CLOUDFLARE_R2_BUCKET;
+  const folder = process.env.CLOUDFLARE_R2_FOLDER || "produtos";
+  const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL;
+  const objectKey = `${folder}/${Date.now()}-${safeFileName(file.originalname || "produto.jpg")}`;
+  const client = new S3Client({
+    region: "auto",
+    endpoint: `https://${process.env.CLOUDFLARE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
+    }
+  });
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+      CacheControl: "public, max-age=31536000, immutable"
+    })
+  );
+
+  return `${publicUrl.replace(/\/$/, "")}/${objectKey}`;
+}
+
+function hasR2Config() {
+  return Boolean(
+    process.env.CLOUDFLARE_R2_ACCOUNT_ID &&
+      process.env.CLOUDFLARE_R2_ACCESS_KEY_ID &&
+      process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY &&
+      process.env.CLOUDFLARE_R2_BUCKET &&
+      process.env.CLOUDFLARE_R2_PUBLIC_URL
+  );
+}
+
+function safeFileName(fileName) {
+  const extension = fileName.includes(".") ? fileName.split(".").pop() : "jpg";
+  const baseName = fileName.replace(/\.[^/.]+$/, "");
+
+  return `${baseName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "produto"}.${extension}`;
 }

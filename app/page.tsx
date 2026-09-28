@@ -358,27 +358,87 @@ function Storefront({ products, onGo, onSelect }: { products: Product[]; onGo: (
 }
 
 function Catalog({ products, onGo, onSelect }: { products: Product[]; onGo: (screen: Screen) => void; onSelect: (product: Product) => void }) {
+  const [search, setSearch] = useState("");
+  const [family, setFamily] = useState("todas");
+  const [sort, setSort] = useState("relevancia");
+
+  const families = useMemo(
+    () => Array.from(new Set(products.map((product) => product.family).filter(Boolean))).sort(),
+    [products]
+  );
+
+  const filteredProducts = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
+    return products
+      .filter((product) => {
+        const matchesFamily = family === "todas" || product.family === family;
+        const searchableText = `${product.name} ${product.family} ${product.notes} ${product.tag}`.toLowerCase();
+        const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
+
+        return matchesFamily && matchesSearch;
+      })
+      .sort((a, b) => {
+        if (sort === "menor-preco") {
+          return a.price - b.price;
+        }
+
+        if (sort === "maior-preco") {
+          return b.price - a.price;
+        }
+
+        if (sort === "estoque") {
+          return b.stock - a.stock;
+        }
+
+        return Number(b.tag === "Mais vendido") - Number(a.tag === "Mais vendido");
+      });
+  }, [family, products, search, sort]);
+
   return (
-    <div className="space-y-5">
-      <div className="grid gap-3 md:grid-cols-[1fr_180px_160px]">
-        <input className="field" placeholder="Buscar por nome, nota ou família" />
-        <select className="field" defaultValue="familia">
-          <option value="familia">Família olfativa</option>
-          <option>Floral</option>
-          <option>Amadeirado</option>
-          <option>Cítrico</option>
+    <div className="space-y-6">
+      <div className="rounded-[28px] border border-[#eadac8] bg-gradient-to-br from-white to-[#fff7ef] p-5">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="eyebrow">Catálogo</p>
+            <h3 className="mt-1 font-serif text-4xl text-[#65111d]">Escolha por aroma, preço ou ocasião</h3>
+            <p className="mt-2 text-sm text-[#6b403b]">{filteredProducts.length} perfume{filteredProducts.length === 1 ? "" : "s"} encontrado{filteredProducts.length === 1 ? "" : "s"}.</p>
+          </div>
+          {(search || family !== "todas" || sort !== "relevancia") && (
+            <button className="btn-secondary" onClick={() => { setSearch(""); setFamily("todas"); setSort("relevancia"); }} type="button">
+              Limpar filtros
+            </button>
+          )}
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-[1fr_220px_190px]">
+          <input className="field" onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, nota ou família" value={search} />
+          <select className="field" onChange={(event) => setFamily(event.target.value)} value={family}>
+            <option value="todas">Todas as famílias</option>
+            {families.map((familyName) => (
+              <option key={familyName} value={familyName}>{familyName}</option>
+            ))}
         </select>
-        <select className="field" defaultValue="relevancia">
+          <select className="field" onChange={(event) => setSort(event.target.value)} value={sort}>
           <option value="relevancia">Relevância</option>
-          <option>Menor preço</option>
-          <option>Mais vendidos</option>
+            <option value="menor-preco">Menor preço</option>
+            <option value="maior-preco">Maior preço</option>
+            <option value="estoque">Maior estoque</option>
         </select>
+        </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {products.map((product) => (
+
+      {filteredProducts.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredProducts.map((product) => (
           <PerfumeCard key={product._id} product={product} onSelect={onSelect} onGo={onGo} />
         ))}
-      </div>
+        </div>
+      ) : (
+        <div className="rounded-[28px] border border-dashed border-[#d6ad96] bg-white/70 p-8 text-center">
+          <p className="font-serif text-3xl text-[#65111d]">Nenhum perfume encontrado</p>
+          <p className="mt-2 text-sm text-[#6b403b]">Tente buscar por outra nota, família olfativa ou limpar os filtros.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -534,19 +594,23 @@ function Payment({ cart, subtotal, shipping, total, onCheckout, setNotice }: { c
 }
 
 function PerfumeCard({ product, onSelect, onGo }: { product: Product; onSelect: (product: Product) => void; onGo: (screen: Screen) => void }) {
+  const stockLabel = product.stock <= 0 ? "Esgotado" : product.stock <= 3 ? "Últimas unidades" : `Estoque ${product.stock}`;
+
   return (
-    <article className="soft-card rounded-[24px] p-4 transition hover:-translate-y-1 hover:shadow-2xl">
+    <article className="group soft-card overflow-hidden rounded-[26px] p-4 transition hover:-translate-y-1 hover:shadow-2xl">
       <div className="mb-4 flex items-center justify-between">
-        <span className="rounded bg-[#eadac8] px-3 py-1 text-xs font-semibold text-[#65111d]">{product.tag}</span>
-        <span className="text-xs text-[#6b403b]">Estoque {product.stock}</span>
+        <span className="rounded-full bg-[#eadac8] px-3 py-1 text-xs font-semibold text-[#65111d]">{product.tag}</span>
+        <span className={`text-xs font-semibold ${product.stock <= 3 ? "text-[#9a2432]" : "text-[#6b403b]"}`}>{stockLabel}</span>
       </div>
       <ProductImage product={product} />
       <p className="text-sm text-[#9a6b58]">{product.family}</p>
       <h3 className="mt-1 font-serif text-2xl text-[#65111d]">{product.name}</h3>
-      <p className="mt-2 text-sm text-[#6b403b]">{product.notes}</p>
+      <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#6b403b]">{product.notes}</p>
       <div className="mt-4 flex items-center justify-between gap-3">
         <strong className="text-lg text-[#230c11]">{money.format(product.price)}</strong>
-        <button className="btn-primary min-h-10 px-4 py-2 text-sm" onClick={() => { onSelect(product); onGo("Produto"); }} type="button">Ver</button>
+        <button className="btn-primary min-h-10 px-4 py-2 text-sm" disabled={product.stock <= 0} onClick={() => { onSelect(product); onGo("Produto"); }} type="button">
+          {product.stock <= 0 ? "Indisponível" : "Ver detalhes"}
+        </button>
       </div>
     </article>
   );
