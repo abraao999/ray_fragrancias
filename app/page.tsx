@@ -198,11 +198,11 @@ export default function Home() {
 
   async function checkout(checkoutData: CheckoutPayload) {
     if (cart.length === 0) {
-      setNotice("Adicione um perfume ao carrinho antes de pagar.");
+      setNotice("Adicione um perfume ao carrinho antes de finalizar o pedido.");
       return;
     }
 
-    const response = await fetch(`${apiUrl}/payments/checkout`, {
+    const response = await fetch(`${apiUrl}/orders`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -218,10 +218,15 @@ export default function Home() {
     const data = await readJson(response);
 
     if (!response.ok) {
-      throw new Error(data.message || "Não foi possível iniciar o pagamento.");
+      throw new Error(data.message || "Não foi possível finalizar o pedido.");
     }
 
-    window.location.href = data.paymentUrl;
+    setCart([]);
+    setShippingOptions([]);
+    setSelectedShipping(null);
+    setShipping(18.4);
+    setScreen("Vitrine");
+    setNotice(`Pedido ${data.order?._id ? `#${String(data.order._id).slice(-6).toUpperCase()} ` : ""}recebido. Entraremos em contato para combinar o pagamento.`);
   }
 
   return (
@@ -491,7 +496,7 @@ function Payment({ cart, subtotal, shipping, total, onCheckout, setNotice }: { c
         customerNote: String(formData.get("customerNote") || "")
       });
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Erro ao abrir pagamento.");
+      setNotice(error instanceof Error ? error.message : "Erro ao finalizar pedido.");
     }
   }
 
@@ -520,7 +525,7 @@ function Payment({ cart, subtotal, shipping, total, onCheckout, setNotice }: { c
         </div>
         <textarea className="field min-h-24" name="customerNote" placeholder="Observação para o pedido, ex: embalagem para presente" />
         <button className="btn-primary" disabled={cart.length === 0} type="submit">
-          Pagar com Mercado Pago
+          Finalizar pedido
         </button>
       </form>
       <OrderSummary subtotal={subtotal} shipping={shipping} total={total} action="Finalizar compra" />

@@ -67,6 +67,7 @@ async function requireDb(_req, _res, next) {
     await dbConnectionPromise;
     next();
   } catch (error) {
+    dbConnectionPromise = undefined;
     next(error);
   }
 }

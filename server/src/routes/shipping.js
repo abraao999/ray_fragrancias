@@ -4,8 +4,8 @@ export const shippingRouter = Router();
 
 shippingRouter.post("/quote", async (req, res, next) => {
   try {
-  const cep = String(req.body.cep || "").replace(/\D/g, "");
-  const subtotal = Number(req.body.subtotal || 0);
+    const cep = String(req.body.cep || "").replace(/\D/g, "");
+    const subtotal = Number(req.body.subtotal || 0);
 
   if (cep.length !== 8) {
     res.status(400).json({ message: "CEP inválido." });
@@ -34,12 +34,14 @@ shippingRouter.post("/quote", async (req, res, next) => {
     } catch (error) {
       provider = "fallback";
       warning = error.message || "Melhor Envio indisponível no momento.";
+      console.warn("[shipping] Melhor Envio fallback:", warning);
       options = [fallbackQuote(cep, subtotal)];
     }
 
     if (!options.length) {
       provider = "fallback";
       warning = "Nenhuma opção válida retornada pelo Melhor Envio.";
+      console.warn("[shipping] Melhor Envio fallback:", warning);
       options = [fallbackQuote(cep, subtotal)];
     }
 
@@ -95,11 +97,11 @@ async function quoteMelhorEnvio({ cep, subtotal, items }) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.message || data?.error || "Não foi possível consultar o Melhor Envio.");
+    throw new Error(formatMelhorEnvioError(data, response.status));
   }
 
   if (!Array.isArray(data)) {
-    throw new Error(data?.message || "Resposta inesperada do Melhor Envio.");
+    throw new Error(formatMelhorEnvioError(data, response.status, "Resposta inesperada do Melhor Envio."));
   }
 
   return data
@@ -143,4 +145,27 @@ function buildProducts(items, subtotal) {
 
 function onlyDigits(value = "") {
   return String(value).replace(/\D/g, "");
+}
+
+function formatMelhorEnvioError(data, status, fallbackMessage = "Não foi possível consultar o Melhor Envio.") {
+  if (!data) {
+    return `${fallbackMessage} Status ${status}.`;
+  }
+
+  if (typeof data === "string") {
+    return `${fallbackMessage} Status ${status}: ${data}`;
+  }
+
+  const details = [
+    data.message,
+    data.error,
+    data.error_description,
+    data.errors ? JSON.stringify(data.errors) : ""
+  ].filter(Boolean);
+
+  if (!details.length) {
+    return `${fallbackMessage} Status ${status}: ${JSON.stringify(data)}`;
+  }
+
+  return `${fallbackMessage} Status ${status}: ${details.join(" | ")}`;
 }
