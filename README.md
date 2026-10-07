@@ -90,6 +90,8 @@ DEFAULT_PACKAGE_LENGTH=8
 DEFAULT_PACKAGE_WEIGHT=0.35
 ```
 
+Use em `CLOUDFLARE_R2_PUBLIC_URL` a URL pública do bucket, como `https://pub-xxxx.r2.dev` ou um domínio customizado. Não use o endpoint privado `https://<account-id>.r2.cloudflarestorage.com`, porque ele serve para a API/S3 e não abre imagens no navegador.
+
 Você não precisa configurar `NEXT_PUBLIC_API_URL` na Vercel, porque o frontend usa `/api` por padrão e chama a API no mesmo domínio.
 
 Se quiser apontar para uma API externa, aí sim configure:

@@ -33,7 +33,7 @@ export async function uploadProductImage(file) {
 
   const bucket = process.env.CLOUDFLARE_R2_BUCKET;
   const folder = process.env.CLOUDFLARE_R2_FOLDER || "produtos";
-  const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL;
+  const publicUrl = getR2PublicUrl();
   const objectKey = `${folder}/${Date.now()}-${safeFileName(file.originalname || "produto.jpg")}`;
   const client = new S3Client({
     region: "auto",
@@ -65,6 +65,20 @@ function hasR2Config() {
       process.env.CLOUDFLARE_R2_BUCKET &&
       process.env.CLOUDFLARE_R2_PUBLIC_URL
   );
+}
+
+function getR2PublicUrl() {
+  const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_DEV_URL;
+
+  if (!publicUrl) {
+    throw new Error("CLOUDFLARE_R2_PUBLIC_URL não foi configurada.");
+  }
+
+  if (publicUrl.includes("r2.cloudflarestorage.com")) {
+    throw new Error("CLOUDFLARE_R2_PUBLIC_URL deve ser a URL pública do bucket, como https://pub-xxxx.r2.dev, não o endpoint privado r2.cloudflarestorage.com.");
+  }
+
+  return publicUrl;
 }
 
 function safeFileName(fileName) {

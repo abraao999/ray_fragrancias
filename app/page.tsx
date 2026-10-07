@@ -271,27 +271,17 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[300px_1fr]">
-        <aside className="space-y-4">
-          <div className="surface rounded-[28px] p-5">
-            <p className="eyebrow">Loja implementada</p>
-            <h1 className="mt-2 font-serif text-4xl leading-tight text-[#65111d]">Ray Fragrâncias</h1>
-            <p className="mt-3 text-sm leading-6 text-[#6b403b]">
-              React Web consumindo API Node, MongoDB para produtos e Mercado Pago para checkout.
-            </p>
+      <section className="mx-auto max-w-7xl px-5 py-6 md:py-10">
+        <div className="mb-5 flex flex-col gap-3 rounded-[28px] border border-[#eadac8] bg-white/70 px-5 py-4 shadow-[0_18px_55px_rgba(101,17,29,0.06)] backdrop-blur md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="eyebrow">Ray Fragrâncias</p>
+            <h1 className="font-serif text-3xl text-[#65111d] md:text-4xl">{screen}</h1>
           </div>
-          <div className="soft-card rounded-[24px] p-5">
-            <p className="text-sm font-semibold text-[#65111d]">Status</p>
-            <p className="mt-2 text-sm leading-6 text-[#6b403b]">{notice}</p>
-          </div>
-        </aside>
+          <p className="max-w-2xl text-sm leading-6 text-[#6b403b]">{notice}</p>
+        </div>
 
-        <div className="surface overflow-hidden rounded-[32px]">
-          <div className="border-b border-[#eadac8] px-6 py-5">
-            <p className="eyebrow">Tela atual</p>
-            <h2 className="font-serif text-4xl text-[#65111d]">{screen}</h2>
-          </div>
-          <div className="p-5 md:p-8">
+        <div className="content-panel overflow-hidden rounded-[34px]">
+          <div className="p-4 md:p-7">
             {screen === "Vitrine" && <Storefront products={products} onGo={setScreen} onSelect={setSelected} />}
             {screen === "Catálogo" && <Catalog products={products} onGo={setScreen} onSelect={setSelected} />}
             {screen === "Produto" && <ProductDetail product={selected} onAdd={addToCart} onQuote={quoteShipping} />}
@@ -445,24 +435,58 @@ function Catalog({ products, onGo, onSelect }: { products: Product[]; onGo: (scr
 
 function ProductDetail({ product, onAdd, onQuote }: { product: Product; onAdd: (product: Product) => void; onQuote: (cep: string) => Promise<void> }) {
   const [cep, setCep] = useState("");
+  const stockLabel = product.stock <= 0 ? "Esgotado" : product.stock <= 3 ? `Só ${product.stock} em estoque` : "Disponível";
 
   return (
-    <div className="grid gap-7 lg:grid-cols-[0.9fr_1.1fr]">
-      <ProductImage product={product} large />
-      <div>
-        <p className="text-sm uppercase tracking-[0.24em] text-[#9a6b58]">{product.family}</p>
-        <h3 className="mt-2 font-serif text-5xl text-[#65111d]">{product.name}</h3>
-        <p className="mt-4 text-lg text-[#6b403b]">Notas de {product.notes}. Estoque atual: {product.stock} unidades.</p>
-        <div className="mt-6 rounded-lg border border-[#eadac8] p-4">
-          <p className="text-sm font-semibold text-[#65111d]">Calcular entrega</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_140px]">
-            <input className="field" placeholder="Digite seu CEP" value={cep} onChange={(event) => setCep(event.target.value)} />
-            <button className="btn-primary bg-[#230c11]" onClick={() => onQuote(cep)} type="button">Calcular</button>
+    <div className="product-hero overflow-hidden rounded-[32px]">
+      <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative min-h-[420px] bg-[#f3e4d5] p-4 md:p-8">
+          <div className="absolute left-6 top-6 z-10 flex gap-2">
+            <span className="rounded-full bg-white/85 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[#65111d] shadow-sm">{product.tag}</span>
+            <span className="rounded-full bg-[#65111d] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white shadow-sm">{stockLabel}</span>
           </div>
+          <ProductImage product={product} large />
         </div>
-        <div className="mt-6 flex flex-wrap items-center gap-4">
-          <strong className="text-3xl text-[#65111d]">{money.format(product.price)}</strong>
-          <button className="btn-primary" onClick={() => onAdd(product)} type="button">Adicionar ao carrinho</button>
+
+        <div className="flex flex-col justify-center bg-[#fffaf5] p-6 md:p-10 xl:p-14">
+          <p className="eyebrow">{product.family}</p>
+          <h3 className="mt-3 max-w-xl font-serif text-5xl leading-[0.95] text-[#65111d] md:text-7xl">{product.name}</h3>
+          <p className="mt-6 max-w-lg text-lg leading-8 text-[#6b403b]">
+            Notas de {product.notes}. Fragrância selecionada para marcar presença com sofisticação no dia a dia.
+          </p>
+
+          <div className="mt-7 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-[#eadac8] bg-white/70 p-4">
+              <span className="block text-xs uppercase tracking-[0.16em] text-[#9a6b58]">Tamanho</span>
+              <strong className="mt-1 block text-[#230c11]">{product.size}</strong>
+            </div>
+            <div className="rounded-2xl border border-[#eadac8] bg-white/70 p-4">
+              <span className="block text-xs uppercase tracking-[0.16em] text-[#9a6b58]">Estoque</span>
+              <strong className="mt-1 block text-[#230c11]">{product.stock} un.</strong>
+            </div>
+            <div className="rounded-2xl border border-[#eadac8] bg-white/70 p-4">
+              <span className="block text-xs uppercase tracking-[0.16em] text-[#9a6b58]">Entrega</span>
+              <strong className="mt-1 block text-[#230c11]">Por CEP</strong>
+            </div>
+          </div>
+
+          <div className="mt-7 rounded-[24px] border border-[#eadac8] bg-white/80 p-4">
+            <p className="text-sm font-bold text-[#65111d]">Calcular entrega</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_150px]">
+              <input className="field" placeholder="Digite seu CEP" value={cep} onChange={(event) => setCep(event.target.value)} />
+              <button className="btn-primary bg-[#230c11]" onClick={() => onQuote(cep)} type="button">Calcular</button>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div>
+              <span className="text-sm text-[#9a6b58]">Preço</span>
+              <strong className="block text-4xl text-[#65111d]">{money.format(product.price)}</strong>
+            </div>
+            <button className="btn-primary min-w-56" disabled={product.stock <= 0} onClick={() => onAdd(product)} type="button">
+              {product.stock <= 0 ? "Indisponível" : "Adicionar ao carrinho"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -597,17 +621,19 @@ function PerfumeCard({ product, onSelect, onGo }: { product: Product; onSelect: 
   const stockLabel = product.stock <= 0 ? "Esgotado" : product.stock <= 3 ? "Últimas unidades" : `Estoque ${product.stock}`;
 
   return (
-    <article className="group soft-card overflow-hidden rounded-[26px] p-4 transition hover:-translate-y-1 hover:shadow-2xl">
-      <div className="mb-4 flex items-center justify-between">
+    <article className="group overflow-hidden rounded-[28px] border border-[#eadac8] bg-[#fffaf5] p-3 shadow-[0_18px_55px_rgba(101,17,29,0.08)] transition hover:-translate-y-1 hover:shadow-2xl">
+      <div className="mb-3 flex items-center justify-between px-1">
         <span className="rounded-full bg-[#eadac8] px-3 py-1 text-xs font-semibold text-[#65111d]">{product.tag}</span>
         <span className={`text-xs font-semibold ${product.stock <= 3 ? "text-[#9a2432]" : "text-[#6b403b]"}`}>{stockLabel}</span>
       </div>
       <ProductImage product={product} />
-      <p className="text-sm text-[#9a6b58]">{product.family}</p>
-      <h3 className="mt-1 font-serif text-2xl text-[#65111d]">{product.name}</h3>
-      <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#6b403b]">{product.notes}</p>
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <strong className="text-lg text-[#230c11]">{money.format(product.price)}</strong>
+      <div className="p-2">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9a6b58]">{product.family}</p>
+        <h3 className="mt-1 font-serif text-2xl text-[#65111d]">{product.name}</h3>
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#6b403b]">{product.notes}</p>
+      </div>
+      <div className="flex items-center justify-between gap-3 p-2 pt-1">
+        <strong className="text-xl text-[#230c11]">{money.format(product.price)}</strong>
         <button className="btn-primary min-h-10 px-4 py-2 text-sm" disabled={product.stock <= 0} onClick={() => { onSelect(product); onGo("Produto"); }} type="button">
           {product.stock <= 0 ? "Indisponível" : "Ver detalhes"}
         </button>
@@ -620,9 +646,9 @@ function ProductImage({ product, large = false }: { product: Product; large?: bo
   const image = resolveImageUrl(product.imageUrl);
 
   return (
-    <div className={`${large ? "min-h-96 rounded-[28px]" : "mb-4 h-44 rounded-[22px]"} grid place-items-center bg-gradient-to-br from-[#fff7ef] to-[#eadac8]`}>
+    <div className={`${large ? "min-h-[520px] rounded-[30px]" : "mb-4 h-64 rounded-[24px]"} grid place-items-center overflow-hidden bg-gradient-to-br from-[#fff8f0] via-[#f0ddc9] to-[#d8b18f]`}>
       {image ? (
-        <img src={image} alt={product.name} className={`${large ? "max-h-80" : "h-32"} max-w-full rounded object-contain`} />
+        <img src={image} alt={product.name} className={`${large ? "h-full max-h-[470px]" : "h-full w-full"} max-w-full rounded object-cover transition duration-300 group-hover:scale-[1.03]`} />
       ) : (
         <div className={`${large ? "h-72 w-36 rounded-t-[42px]" : "h-28 w-16 rounded-t-3xl"} border border-[#d6ad96] bg-gradient-to-b from-white to-[#eadac8] shadow-xl`} />
       )}
